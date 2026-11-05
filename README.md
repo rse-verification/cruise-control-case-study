@@ -1,12 +1,12 @@
 # Cruise Control: C Implementation and ACSL Specification
 
-A single-body cruise controller with natural-language requirements, embedded
+A cruise controller with natural-language requirements, embedded
 ACSL contracts, and reproducible executable checks and Frama-C WP verification.
 
 **Original case study:** [Liu et al. (2024)](https://doi.org/10.3390/app14031046).
 **Primary implementation and formalization work:**
 [Edvin Rungardt (@Spoonvin)](https://github.com/Spoonvin).
-**Quality improvements and validation:**
+**Implementation restructuring, quality improvements, and validation:**
 [Merlijn Sevenhuijsen (@SevenhuijsenM)](https://github.com/SevenhuijsenM).
 
 The controller applies PI regulation on **every ON cycle**, including entry,
@@ -24,7 +24,7 @@ headers/cruise_control_types.h
                          State types and scalar aliases
 headers/module_constants.h
                          Numeric constants
-headers/cruise_control.is Entry signatures and initialization order
+cruise_control.is         Entry signatures and initialization order
 headers/cruise_control_check.c
                          Public-API initialization and transition checks
 nlspec.txt               Detailed natural-language specification
@@ -104,12 +104,52 @@ gcc -std=c11 -Wall -Wextra -Werror -pedantic -Iheaders cruise_control.c headers/
 ./smoke
 ```
 
-Build the selected requirement checks:
+### Build the requirement-test program
+
+The following command compiles `tests/requirements_checks.c` into an executable
+named `requirements-checks`. That test file includes `cruise_control.c`, so
+this command builds the controller together with its test cases; it does not
+run the tests yet.
 
 ```sh
 gcc -std=c11 -Wall -Wextra -Werror -pedantic -Iheaders tests/requirements_checks.c -lm -o requirements-checks
+```
+
+| Part of the command | Meaning |
+|---|---|
+| `gcc` | The C compiler. |
+| `-std=c11` | Compile using the C11 language standard. |
+| `-Wall -Wextra -Werror -pedantic` | Enable strict compiler diagnostics and treat warnings as errors. |
+| `-Iheaders` | Find the project's header files in `headers/`. |
+| `tests/requirements_checks.c` | The test-program source file. |
+| `-lm` | Link the C math library used by the numeric checks. |
+| `-o requirements-checks` | Name the resulting executable `requirements-checks`. |
+
+### List and run test cases
+
+This prints the available test names; it does not execute them:
+
+```sh
 ./requirements-checks list
+```
+
+Run one test by supplying its name. For example, this checks that entering ON
+uses PI control immediately:
+
+```sh
 ./requirements-checks PI_on_entry_to_on
+```
+
+The program prints a JSON result containing `passed`, `actual`, and `expected`.
+`"passed": true` means the observed state, target, integral, and applicable
+throttle output match that case's expectations; `false` means a mismatch.
+This example expects target 100, vehicle speed 95, throttle approximately
+43.065, and integral 5 after entering ON.
+
+These two separate invocations check that QuickAccel reaches 150 from 147.5
+and clamps to 150 from 149, respectively:
+
+```sh
 ./requirements-checks quick_accel_exact_maximum
 ./requirements-checks quick_accel_near_maximum
 ```
@@ -208,8 +248,8 @@ specification based on that published case study.
 | Contributor / source | Contribution |
 |---|---|
 | Liu et al., original paper authors | The original published cruise-control case study on which this work is based. |
-| [Edvin Rungardt (@Spoonvin)](https://github.com/Spoonvin) | Most of the implementation and ACSL formalization work forming the basis of this repository, including the single-body version originally named `cc_edvin_completed_single.c`. |
-| [Merlijn Sevenhuijsen (@SevenhuijsenM)](https://github.com/SevenhuijsenM) | Subsequent quality improvements and checking: reviewing NL/ACSL alignment, correcting PI-on-entry and QuickAccel boundary behavior, running executable checks and real-model proofs, and preparing the standalone verification file and public package. |
+| [Edvin Rungardt (@Spoonvin)](https://github.com/Spoonvin) | Most of the implementation and ACSL formalization work forming the basis of this repository. |
+| [Merlijn Sevenhuijsen (@SevenhuijsenM)](https://github.com/SevenhuijsenM) | Restructuring the implementation into its current form; subsequent quality improvements and checking: reviewing NL/ACSL alignment, correcting PI-on-entry and QuickAccel boundary behavior, running executable checks and real-model proofs, and preparing the standalone verification file and public package. |
 
 The paper is credited as the source of the original case study; Edvin's
 implementation/formalization work and Merlijn's subsequent improvements and
