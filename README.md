@@ -187,3 +187,23 @@ LLMs.** *Applied Sciences*, 14(3), 1046, 2024.
 The cruise-control case study is adapted from the paper; this package includes
 the subsequent ACSL formalization and requirement clarifications described
 above.
+
+## License
+
+This repository is licensed under the **Creative Commons Attribution 4.0
+International license (CC BY 4.0)**; see [LICENSE](LICENSE). This is the same
+license under which the original paper is published, as recorded in the
+[publisher-deposited metadata](https://api.crossref.org/works/10.3390/app14031046).
+The repository's adaptations and additions are also offered under CC BY 4.0.
+
+Original paper material: copyright 2024 Mingxing Liu, Junfeng Wang, Tao Lin,
+Quan Ma, Zhiyang Fang, and Yanqun Wu. The principal contributor to the
+subsequent implementation and ACSL formalization is
+[Edvin Rungardt (@Spoonvin)](https://github.com/Spoonvin).
+
+Reuse must retain the applicable author and contributor attribution, cite the
+original source, link to the license, and indicate changes. The adaptations
+in this repository include ACSL formalization, requirement clarifications,
+PI-on-entry and QuickAccel boundary corrections, verification checks, and
+packaging. Material is provided without warranties under Section 5 of the
+license. Attribution does not imply endorsement by the original authors.
