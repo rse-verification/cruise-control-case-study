@@ -1,7 +1,7 @@
 # Cruise Control: C Implementation and ACSL Specification
 
 A cruise controller with natural-language requirements, embedded
-ACSL contracts, and reproducible executable checks and Frama-C WP verification.
+ACSL contracts, reproducible unit tests, and Frama-C WP verification.
 
 **Original case study:** [Liu et al. (2024)](https://doi.org/10.3390/app14031046).
 **Primary implementation and formalization work:**
@@ -25,17 +25,15 @@ headers/cruise_control_types.h
 headers/module_constants.h
                          Numeric constants
 cruise_control.is         Entry signatures and initialization order
-headers/cruise_control_check.c
-                         Public-API initialization and transition checks
+tests/smoke_test.c        Public-API initialization and transition smoke test
 nlspec.txt               Detailed natural-language specification
-tests/requirements_checks.c
-                         29 selected executable requirement checks
+tests/unit_tests.c       29 requirement-focused unit tests
 ```
 
 ## Prerequisites
 
 - Linux or WSL.
-- GCC with C11 support for compilation and executable checks.
+- GCC with C11 support for compilation and unit tests.
 - Frama-C with the WP and RTE plugins for formal verification.
 - Alt-Ergo, Z3, and CVC5 installed and configured as WP provers. Check their
   availability with `frama-c -wp-detect`.
@@ -95,24 +93,24 @@ logic and behavior names in the external file are prefixed to avoid name
 collisions. Implementations with helpers also need sufficient helper contracts
 or explicit inlining for WP to reason about their calls.
 
-## Native checks
+## Unit tests and smoke test
 
 Build and run the public-API smoke test:
 
 ```sh
-gcc -std=c11 -Wall -Wextra -Werror -pedantic -Iheaders cruise_control.c headers/cruise_control_check.c -o smoke
+gcc -std=c11 -Wall -Wextra -Werror -pedantic -Iheaders cruise_control.c tests/smoke_test.c -o smoke
 ./smoke
 ```
 
-### Build the requirement-test program
+### Build the unit-test program
 
-The following command compiles `tests/requirements_checks.c` into an executable
-named `requirements-checks`. That test file includes `cruise_control.c`, so
+The following command compiles `tests/unit_tests.c` into an executable
+named `unit-tests`. That test file includes `cruise_control.c`, so
 this command builds the controller together with its test cases; it does not
 run the tests yet.
 
 ```sh
-gcc -std=c11 -Wall -Wextra -Werror -pedantic -Iheaders tests/requirements_checks.c -lm -o requirements-checks
+gcc -std=c11 -Wall -Wextra -Werror -pedantic -Iheaders tests/unit_tests.c -lm -o unit-tests
 ```
 
 | Part of the command | Meaning |
@@ -121,23 +119,23 @@ gcc -std=c11 -Wall -Wextra -Werror -pedantic -Iheaders tests/requirements_checks
 | `-std=c11` | Compile using the C11 language standard. |
 | `-Wall -Wextra -Werror -pedantic` | Enable strict compiler diagnostics and treat warnings as errors. |
 | `-Iheaders` | Find the project's header files in `headers/`. |
-| `tests/requirements_checks.c` | The test-program source file. |
-| `-lm` | Link the C math library used by the numeric checks. |
-| `-o requirements-checks` | Name the resulting executable `requirements-checks`. |
+| `tests/unit_tests.c` | The unit-test source file. |
+| `-lm` | Link the C math library used by the numeric tests. |
+| `-o unit-tests` | Name the resulting executable `unit-tests`. |
 
 ### List and run test cases
 
 This prints the available test names; it does not execute them:
 
 ```sh
-./requirements-checks list
+./unit-tests list
 ```
 
 Run one test by supplying its name. For example, this checks that entering ON
 uses PI control immediately:
 
 ```sh
-./requirements-checks PI_on_entry_to_on
+./unit-tests PI_on_entry_to_on
 ```
 
 The program prints a JSON result containing `passed`, `actual`, and `expected`.
@@ -150,8 +148,8 @@ These two separate invocations check that QuickAccel reaches 150 from 147.5
 and clamps to 150 from 149, respectively:
 
 ```sh
-./requirements-checks quick_accel_exact_maximum
-./requirements-checks quick_accel_near_maximum
+./unit-tests quick_accel_exact_maximum
+./unit-tests quick_accel_near_maximum
 ```
 
 Run each listed case in a fresh process and inspect its JSON `passed` field.
@@ -161,8 +159,8 @@ passing them does not establish reachability or exhaustive NL coverage.
 
 ### Test-case coverage
 
-`headers/cruise_control_check.c` is the public-API smoke test. The 29 cases in
-`tests/requirements_checks.c` are grouped below; `./requirements-checks list`
+`tests/smoke_test.c` is the public-API smoke test. The 29 unit tests in
+`tests/unit_tests.c` are grouped below; `./unit-tests list`
 prints every executable case name.
 
 | Area | Cases | Test names |
@@ -184,7 +182,7 @@ executable suite.
 
 - C11 compilation with strict warnings: pass.
 - Public-API smoke test: pass.
-- Selected executable requirement checks: 29/29 pass.
+- Requirement-focused unit tests: 29/29 pass.
 - Frama-C WP with `-wp-model real`: 81/81 goals proved.
 - External verification file against the supplied implementation, including
   its embedded contracts: 111/111 goals proved.
@@ -235,7 +233,7 @@ assumes finite analog inputs and state, vehicle speed in [0,1000], target in
 non-OFF state. Output pointers must be valid and separated. See the ACSL
 `requires` clauses for the precise per-call domain.
 
-The executable checks cover selected finite-input cases and use a `0.0001`
+The unit tests cover selected finite-input cases and use a `0.0001`
 absolute tolerance for numeric comparisons. OFF/STDBY/INT throttle magnitude
 is not asserted by the numerical oracle.
 
@@ -249,7 +247,7 @@ specification based on that published case study.
 |---|---|
 | Liu et al., original paper authors | The original published cruise-control case study on which this work is based. |
 | [Edvin Rungardt (@Spoonvin)](https://github.com/Spoonvin) | Most of the implementation and ACSL formalization work forming the basis of this repository. |
-| [Merlijn Sevenhuijsen (@SevenhuijsenM)](https://github.com/SevenhuijsenM) | Restructuring the implementation into its current form; subsequent quality improvements and checking: reviewing NL/ACSL alignment, correcting PI-on-entry and QuickAccel boundary behavior, running executable checks and real-model proofs, and preparing the standalone verification file and public package. |
+| [Merlijn Sevenhuijsen (@SevenhuijsenM)](https://github.com/SevenhuijsenM) | Restructuring the implementation into its current form; subsequent quality improvements and checking: reviewing NL/ACSL alignment, correcting PI-on-entry and QuickAccel boundary behavior, running unit tests and real-model proofs, and preparing the standalone verification file and public package. |
 
 The paper is credited as the source of the original case study; Edvin's
 implementation/formalization work and Merlijn's subsequent improvements and
@@ -287,6 +285,6 @@ quality improvements and validation by
 Reuse must retain the applicable author and contributor attribution, cite the
 original source, link to the license, and indicate changes. The adaptations
 in this repository include ACSL formalization, requirement clarifications,
-PI-on-entry and QuickAccel boundary corrections, verification checks, and
+PI-on-entry and QuickAccel boundary corrections, unit tests, and
 packaging. Material is provided without warranties under Section 5 of the
 license. Attribution does not imply endorsement by the original authors.

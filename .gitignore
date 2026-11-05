@@ -1,6 +1,6 @@
 /build/
 /smoke
-/requirements-checks
+/unit-tests
 /.frama-c/
 __pycache__/
 *.pyc

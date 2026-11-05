@@ -1,4 +1,4 @@
-/* Executable oracle for nlspec.txt, not an ACSL substitute.
+/* Unit tests for nlspec.txt, not an ACSL substitute.
  * The implementation is included to inspect private state without changing
  * the public API. Every test invocation runs in a fresh process.
  * Ambiguous Resume+brake combinations are excluded.
