@@ -3,8 +3,11 @@
 A single-body cruise controller with natural-language requirements, embedded
 ACSL contracts, and reproducible executable checks and Frama-C WP verification.
 
-**Primary credit:** [Edvin Rungardt (@Spoonvin)](https://github.com/Spoonvin),
-who carried out most of the work on this case study.
+**Original case study:** [Liu et al. (2024)](https://doi.org/10.3390/app14031046).
+**Primary implementation and formalization work:**
+[Edvin Rungardt (@Spoonvin)](https://github.com/Spoonvin).
+**Quality improvements and validation:**
+[Merlijn Sevenhuijsen (@SevenhuijsenM)](https://github.com/SevenhuijsenM).
 
 The controller applies PI regulation on **every ON cycle**, including entry,
 and uses increment-then-clamp QuickAccel behavior. For example, both 147.5 km/h
@@ -37,8 +40,18 @@ tests/requirements_checks.c
 - Alt-Ergo, Z3, and CVC5 installed and configured as WP provers. Check their
   availability with `frama-c -wp-detect`.
 
-The validated toolchain is GCC 13.3.0, Frama-C 33.0 Arsenic, Alt-Ergo 2.6.4,
-Z3 5.1.0, and CVC5 1.2.0.
+### Tested tool versions
+
+| Tool | Tested version |
+|---|---|
+| GCC | 13.3.0 |
+| Frama-C | 33.0 (Arsenic) |
+| Alt-Ergo | 2.6.4 |
+| Z3 | 5.1.0 |
+| CVC5 | 1.2.0 |
+
+These are the versions used for the recorded validation results, rather than
+minimum supported versions. Validation was performed on Linux through WSL.
 
 ## Formal verification
 
@@ -106,6 +119,27 @@ The suite covers initialization, 26 individual cases, and two sequences
 starting from initialization. Individual cases may seed private state;
 passing them does not establish reachability or exhaustive NL coverage.
 
+### Test-case coverage
+
+`headers/cruise_control_check.c` is the public-API smoke test. The 29 cases in
+`tests/requirements_checks.c` are grouped below; `./requirements-checks list`
+prints every executable case name.
+
+| Area | Cases | Test names |
+|---|---:|---|
+| Initialization | 1 | `init_resets_outputs_and_integral` |
+| Disable, brake priority, interruption, and resume | 5 | `disabled_retains_speed`, `brake_priority`, `interrupted_waits_for_resume`, `resume_preserves_speed_over_set`, `resume_to_standby` |
+| Inclusive vehicle-speed eligibility | 4 | `below_minimum_standby`, `minimum_speed_inclusive`, `maximum_speed_inclusive`, `above_maximum_standby` |
+| Accelerator and brake thresholds | 4 | `accelerator_threshold_equal`, `accelerator_above_threshold`, `brake_threshold_equal`, `brake_above_threshold` |
+| Target-speed management and button priorities | 7 | `set_has_highest_speed_priority`, `quick_accel_priority_over_decel`, `quick_accel_near_maximum`, `quick_accel_exact_maximum`, `quick_decel_near_minimum`, `set_outside_range_is_bounded`, `no_speed_button_retains_target` |
+| PI calculation, saturation, and integral reset | 6 | `PI_on_entry_to_on`, `PI_continued_on`, `upper_saturation_freezes_integral`, `lower_saturation_freezes_integral`, `float_rounding_example`, `inactive_resets_integral` |
+| Sequences starting from initialization | 2 | `reachable_quick_accel_boundary`, `reachable_PI_reentry` |
+
+The external verification file is also checked separately with a valid
+contract-free candidate and a deliberately faulty QuickAccel candidate, as
+reported below. Those experiments are not additional cases in the 29-case
+executable suite.
+
 ## Validation results
 
 - C11 compilation with strict warnings: pass.
@@ -167,12 +201,19 @@ is not asserted by the numerical oracle.
 
 ## Credits and provenance
 
-The primary contributor to this case study is
-[Edvin Rungardt (@Spoonvin)](https://github.com/Spoonvin). This package derives
-from his single-body implementation, originally named
-`cc_edvin_completed_single.c`, and its ACSL formalization. Subsequent changes
-align PI control on entry and QuickAccel boundary behavior with the NL
-requirements, and move shared types and constants into public headers.
+The original cruise-control case study comes from the paper cited below.
+This repository develops and validates an adapted implementation and formal
+specification based on that published case study.
+
+| Contributor / source | Contribution |
+|---|---|
+| Liu et al., original paper authors | The original published cruise-control case study on which this work is based. |
+| [Edvin Rungardt (@Spoonvin)](https://github.com/Spoonvin) | Most of the implementation and ACSL formalization work forming the basis of this repository, including the single-body version originally named `cc_edvin_completed_single.c`. |
+| [Merlijn Sevenhuijsen (@SevenhuijsenM)](https://github.com/SevenhuijsenM) | Subsequent quality improvements and checking: reviewing NL/ACSL alignment, correcting PI-on-entry and QuickAccel boundary behavior, running executable checks and real-model proofs, and preparing the standalone verification file and public package. |
+
+The paper is credited as the source of the original case study; Edvin's
+implementation/formalization work and Merlijn's subsequent improvements and
+validation are contributions to this adaptation.
 
 ### Original paper
 
@@ -199,7 +240,9 @@ The repository's adaptations and additions are also offered under CC BY 4.0.
 Original paper material: copyright 2024 Mingxing Liu, Junfeng Wang, Tao Lin,
 Quan Ma, Zhiyang Fang, and Yanqun Wu. The principal contributor to the
 subsequent implementation and ACSL formalization is
-[Edvin Rungardt (@Spoonvin)](https://github.com/Spoonvin).
+[Edvin Rungardt (@Spoonvin)](https://github.com/Spoonvin), with subsequent
+quality improvements and validation by
+[Merlijn Sevenhuijsen (@SevenhuijsenM)](https://github.com/SevenhuijsenM).
 
 Reuse must retain the applicable author and contributor attribution, cite the
 original source, link to the license, and indicate changes. The adaptations
