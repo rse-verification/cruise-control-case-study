@@ -1,0 +1,8 @@
+/build/
+/smoke
+/requirements-checks
+/.frama-c/
+__pycache__/
+*.pyc
+*.o
+*.exe

@@ -1,0 +1,204 @@
+# Cruise-control natural-language specification
+
+## 1. Input Signal Names and Sources
+
+* **CC_INR_01:** Cruise-control enable signal. `true` enables cruise control and `false` disables it.
+* **CC_INR_02:** Resume signal for resuming cruise control after braking.
+* **CC_INR_03:** Set signal for storing the current speed as cruise speed.
+* **CC_INR_04:** Quick Decel signal for decreasing cruise speed.
+* **CC_INR_05:** Quick Accel signal for increasing cruise speed.
+* **CC_INR_06:** Accelerator pedal sensor value.
+* **CC_INR_07:** Brake pedal sensor value.
+* **CC_INR_08:** Current vehicle speed.
+
+## 2. Input Signal Types
+
+* **RNI_INR_03:** Enable, Resume, Set, Quick Decel, and Quick Accel are boolean values.
+* **RNI_INR_04:** Accelerator, Brake, and Speed are floating-point values.
+
+## 3. Valid Range of Input Signals
+
+* None
+
+## 4. State Signal Names
+
+* **CC_STR_01:** Current cruise speed (*CC_OUTR_01*).
+* **CC_STR_02:** Current cruise setting (*CC_OUTR_03*).
+* **CC_STR_03:** Current integral value for the controller (*cruise_integral*).
+
+## 5. State Signal Types
+
+* **CC_STR_04:** CC_OUTR_01 and cruise_integral are floating-point values.
+* **CC_STR_05:** CC_OUTR_03 has type `CruiseState` with four states: **CRUISE_OFF, CRUISE_ON, CRUISE_STDBY, CRUISE_INT**.
+* **CC_STR_06:** `cruise_integral` is private persistent module state declared at file scope as `static tF32 cruise_integral = 0.0f;`.
+
+## 6. Valid Range of Input Signals
+
+* None
+
+## 7. Output Signal Names and Destinations
+
+* **CC_OUTR_01:** Cruise speed signal (*CruiseSpeed*), output to the instrument panel.
+* **CC_OUTR_02:** Throttle command signal (*ThrottleCmd*), output to the throttle.
+* **CC_OUTR_03:** Vehicle cruise state signal (*CruiseState*), output to the instrument panel.
+
+## 8. Output Signal Types
+
+* **CC_OUTR_04:** CruiseSpeed is an analog signal (floating-point type).
+* **CC_OUTR_05:** ThrottleCmd is an analog throttle command represented as a floating-point percentage value.
+* **CC_OUTR_06:** CruiseState is a multi-state signal with four states: **OFF, ON, STDBY, INT**.
+
+## 9. Valid Range of Output Signals
+
+* None
+
+## 10. Program Parameters
+
+* SpeedMin: 30.0 km/h
+* SpeedMax: 150.0 km/h
+* SpeedInc: 2.5 km/h
+* Kp: 8.113
+* Ki: 0.5
+* ThrottleSatMax: 45.0%
+* PedalsMin: 3.0%
+
+## 11. Functional Requirements
+
+### 11.1 Cruise Control Behavior
+
+For this subsection, speed is within limits when it is greater than or equal
+to *SpeedMin* and less than or equal to *SpeedMax*. A pedal is pressed when
+its sensor value is greater than *PedalsMin*.
+
+The following priority order applies in each invocation:
+
+1. If Enable is false, the next state is CRUISE_OFF.
+2. Otherwise, if the brake pedal is pressed, the next state is CRUISE_INT.
+3. Otherwise, if the current state is CRUISE_INT and Resume is false, the next state remains CRUISE_INT.
+4. Otherwise, the next state is CRUISE_ON when the accelerator is not pressed and speed is within limits; otherwise it is CRUISE_STDBY.
+
+* **CC_HLR_CCB_01:** `cruise_control_init` shall initialize the cruise state to CRUISE_OFF.
+* **CC_HLR_CCB_02:** When Enable is true, the resulting state shall be CRUISE_ON, CRUISE_STDBY, or CRUISE_INT.
+* **CC_HLR_CCB_03:** When Enable is false, the resulting state shall be CRUISE_OFF.
+* **CC_HLR_CCB_04:** When enabled, not braking, and not waiting in an interrupted state, CC shall be CRUISE_ON when the accelerator is not pressed and speed is within limits.
+* **CC_HLR_CCB_05:** Under the same conditions, CC shall be CRUISE_STDBY when the accelerator is pressed or speed is outside limits.
+* **CC_HLR_CCB_06:** A CRUISE_STDBY state shall change to CRUISE_ON when the accelerator is not pressed and speed returns within limits.
+* **CC_HLR_CCB_07:** When enabled and the brake pedal is pressed, CC shall change to CRUISE_INT.
+* **CC_HLR_CCB_08:** Resume from CRUISE_INT shall select CRUISE_ON or CRUISE_STDBY from the accelerator and speed conditions without changing the stored cruise speed during that invocation.
+
+### 11.2 Car Driving Control
+
+* **CC_HLR_CDC_01:**
+  When CC is OFF, speed is not regulated by CC.
+
+* **CC_HLR_CDC_02:**
+  When CC is ON, speed is automatically regulated by CC.
+
+* **CC_HLR_CDC_03:**
+  * Regulation uses a proportional-integral (PI) controller with Kp and Ki.
+  * Each cycle, the unsaturated candidate output is computed as:
+    `out = Kp * error + Ki * (integral + error)`
+  * `integral + error` is used for this output computation even if the integral state is not updated afterward.
+  * This PI calculation also applies to the first cycle entering CRUISE_ON.
+
+* **CC_HLR_CDC_04:**
+  Overshoot protection:
+  * Integral is reset when CC is not ON.
+  * If the resulting throttle command is saturated at or below 0, or at or above *ThrottleSatMax*, the integral state shall not be updated for that cycle.
+  * If the throttle command is not saturated, the integral state shall be updated using the current speed error.
+
+* **CC_HLR_CDC_05:**
+  Throttle is limited to *ThrottleSatMax* to ensure comfort.
+
+### 11.3 Cruise Speed Management
+
+* **CC_HLR_CSM_01:**
+  Cruise speed is changed and managed ONLY when CC is enabled (ON, STDBY, INT).
+
+* **CC_HLR_CSM_02:**
+  Cruise speed is set to current speed when SET is pressed.
+
+* **CC_HLR_CSM_03:**
+  When cruise-speed management is permitted and SET is not pressed,
+  QUICKACCEL increases the stored cruise speed by *SpeedInc* if the stored
+  speed is below *SpeedMax*. The resulting speed is clamped to *SpeedMax*;
+  an increment that reaches *SpeedMax* exactly is permitted. The enabled
+  speed bounds in CC_HLR_CSM_05 also apply.
+
+* **CC_HLR_CSM_04:**
+  Cruise speed decreases by *SpeedInc* when QUICKDECEL is pressed,
+  only if above *SpeedMin*.
+
+* **CC_HLR_CSM_05:**
+  Cruise speed should be bounded by *SpeedMin* and *SpeedMax* when CC is enabled.
+
+* **CC_HLR_CSM_06:**
+  Priority when multiple input signals active:
+  1. SET
+  2. QUICKACCEL
+  3. QUICKDECEL
+
+### 11.4 Pedal Press Detection
+
+* **CC_HLR_PPD_01:**
+  Accelerator is considered pressed when value > *PedalsMin*.
+
+* **CC_HLR_PPD_02:**
+  Brake is considered pressed when value > *PedalsMin*.
+
+## 12. Mandatory Implementation Structure
+
+The generated implementation shall provide both entry functions declared by
+`cruise_control.is`. Their corresponding ACSL contracts verify initialization
+and cyclic execution separately.
+
+### 12.1 Skeleton
+
+```c
+#include "cruise_control.h"
+#include "module_constants.h"
+
+static tF32 cruise_integral = 0.0f;
+
+void cruise_control_init(
+    float *CC_OUTR_01,
+    float *CC_OUTR_02,
+    CruiseState *CC_OUTR_03)
+{
+}
+
+void cruise_control(
+    const bool CC_INR_01,
+    const bool CC_INR_02,
+    const bool CC_INR_03,
+    const bool CC_INR_04,
+    const bool CC_INR_05,
+    const float CC_INR_06,
+    const float CC_INR_07,
+    const float CC_INR_08,
+    float *CC_OUTR_01,
+    float *CC_OUTR_02,
+    CruiseState *CC_OUTR_03)
+{
+}
+```
+
+### 12.2 Runtime state ownership
+
+The implementation shall declare exactly one private persistent controller
+integral at file scope:
+
+```c
+static tF32 cruise_integral = 0.0f;
+```
+
+This variable shall not be declared in a public header and shall not use
+external linkage. `cruise_control_init` shall reset `cruise_integral` to
+`0.0f`. `cruise_control` shall read and update it according to
+CC_HLR_CDC_03 and CC_HLR_CDC_04 so that its value persists between cyclic
+invocations.
+
+The caller-owned values referenced by `CC_OUTR_01` and `CC_OUTR_03` hold the
+persistent cruise speed and cruise state. The output pointers shall be valid,
+mutually separated, and separated from the private integral state as required
+by the ACSL contracts.
