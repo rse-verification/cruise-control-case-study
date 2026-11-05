@@ -37,6 +37,10 @@ tests/unit_tests.c       29 requirement-focused unit tests
 - Frama-C with the WP and RTE plugins for formal verification.
 - Alt-Ergo, Z3, and CVC5 installed and configured as WP provers. Check their
   availability with `frama-c -wp-detect`.
+- For the interface and structural checks below, install the
+  [VerNFR Frama-C plugin](https://github.com/rse-verification/VerNFR)
+  following its build instructions. Check that it is available with
+  `frama-c -nfr-h`.
 
 ### Tested tool versions
 
@@ -47,9 +51,69 @@ tests/unit_tests.c       29 requirement-focused unit tests
 | Alt-Ergo | 2.6.4 |
 | Z3 | 5.1.0 |
 | CVC5 | 1.2.0 |
+| VerNFR (`frama-c-vernfr`) | `dev` (installed development build, with Frama-C 33.0) |
 
 These are the versions used for the recorded validation results, rather than
 minimum supported versions. Validation was performed on Linux through WSL.
+
+## Interface specification and VerNFR
+
+[`cruise_control.is`](cruise_control.is) is the module's machine-readable
+**interface specification**. It describes the module boundary and assumptions
+about how other modules use it:
+
+| Field | Meaning for this controller |
+|---|---|
+| `module cruise_control` | Identifies the module. |
+| `entry_functions` | Records the signatures of the two public entries, `cruise_control_init` and `cruise_control`. They are declared in `headers/cruise_control.h` and defined in `cruise_control.c`. |
+| `entry_order` | Assumes `cruise_control_init` is called before `cruise_control`. VerNFR can use this ordering when checking initialization. |
+| `external_calls: { }` | No outgoing calls to other modules are permitted. Local static helper functions are not external module calls. |
+| `external_call_order: { }` | No external-call ordering constraints are needed because no external calls are permitted. |
+
+The entry order is an assumption about the calling environment; writing it in
+the interface specification does not itself enforce the caller's behavior.
+The `.is` file is kept at the repository root alongside the implementation.
+
+[VerNFR](https://github.com/rse-verification/VerNFR) is a Frama-C plugin for
+verifying non-functional requirements concerning control flow and data flow.
+For this case study, it checks the permitted module interface, restrictions on
+calls and visibility, and explicit initialization of state. These checks
+complement the other specifications and tests:
+
+- `nlspec.txt` describes the functional requirements in natural language.
+- ACSL contracts and WP express and prove the controller's functional behavior
+  under the stated preconditions.
+- `cruise_control.is` and VerNFR express and check module-level structural and
+  data-flow constraints.
+- Unit tests exercise concrete inputs and sequences.
+
+### Run VerNFR on the implementation
+
+From the repository root, the following checks the external-call whitelist,
+absence of indirect function-pointer calls, entry definitions and visibility,
+private module state, explicit initialization, and absence of pointer literals:
+
+```sh
+frama-c -vernfr -nfr-ispec cruise_control.is \
+  -cpp-extra-args=-Iheaders -main cruise_control -keep-unused-functions all \
+  -nfr-check-calls -nfr-fun-ptrs -nfr-all-entries-defined -nfr-only-entries \
+  -nfr-static-vars -nfr-proper-init -nfr-check-ptr-literals cruise_control.c
+```
+
+Check that the public header declares the required entries and contains no
+function definitions:
+
+```sh
+frama-c -vernfr -nfr-ispec cruise_control.is \
+  -cpp-extra-args=-Iheaders -keep-unused-functions all -keep-unused-types \
+  -nfr-all-entries-declared -nfr-no-fun-defs headers/cruise_control.h
+```
+
+These commands target the controller and its public header, not the unit-test
+program or the external ACSL verification wrapper. Read the VerNFR diagnostics:
+violations may be reported as warnings rather than a nonzero exit status.
+The commands select the applicable checks explicitly; they do not claim that
+every optional VerNFR rule has been checked.
 
 ## Formal verification
 
@@ -186,6 +250,8 @@ executable suite.
 - Frama-C WP with `-wp-model real`: 81/81 goals proved.
 - External verification file against the supplied implementation, including
   its embedded contracts: 111/111 goals proved.
+- VerNFR implementation and public-header checks listed above: pass, with
+  successful interface-specification parsing and no VerNFR violation warnings.
 
 The external verifier was also checked against a contract-free candidate:
 75/75 goals proved. Reintroducing the strict QuickAccel boundary bug in that
