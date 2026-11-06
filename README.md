@@ -22,6 +22,9 @@ unit tests, and verification using Frama-C and VerNFR.
 | `headers/` | Public API, types, and constants. |
 | `tests/unit_tests.c` | 29 requirement-focused unit tests. |
 | `tests/smoke_test.c` | Public-API smoke test. |
+| `spec2code-config.json` | Spec2Code generation and verification settings. |
+| `spec2code.project.json` | Project discovery settings for Spec2Code. |
+| `spec2code/vernfr.sh` | VerNFR adapter for the configured critics. |
 
 ## Prerequisites
 
@@ -44,6 +47,23 @@ for the interface checks. Check availability with `frama-c -wp-detect` and
 These are the versions used for validation, not minimum requirements.
 Run the commands below from the repository root.
 
+## Run with Spec2Code
+
+Load `spec2code-config.json` in the Spec2Code GUI. For the CLI, run from the
+Spec2Code checkout with its Python environment active:
+
+```sh
+PYTHONPATH=src python3 -m spec2code.cli.run_pipeline \
+  --config /path/to/cruise-control-case-study/spec2code-config.json \
+  --no-open-report --fail-on-critic-failure
+```
+
+The configuration uses `openai/gpt-6-luna`, one program, and up to three
+generation attempts. Set `OPENAI_API_KEY` or select another configured model.
+Paths are relative to the config file; results go to `output/spec2code/`.
+The critics check compilation, external contracts with `-wp-model real`,
+and the selected VerNFR rules. Unit tests remain separate.
+
 ## Formal verification
 
 Verify the implementation's embedded contracts:
@@ -63,8 +83,8 @@ frama-c -cpp-extra-args=-Iheaders cruise_control_ver.c \
 ```
 
 The external verifier includes `cruise_control.c` by default. To test another
-implementation, replace that file or change `CRUISE_CONTROL_IMPLEMENTATION`
-in the verifier. It must provide the public entries and private
+implementation, replace that file or edit its include in the verifier.
+It must provide the public entries and private
 `cruise_integral` state. For an independent check, omit candidate ACSL
 contracts; otherwise Frama-C merges them, including their preconditions.
 
@@ -131,6 +151,9 @@ gcc -std=c11 -Wall -Wextra -Werror -pedantic -Iheaders cruise_control.c tests/sm
 
 ## Validation results
 
+Rerun for `v1.0.0` with the tool versions above. Both direct WP checks used
+`-wp-model real` with the proof cache disabled.
+
 | Check | Result |
 |---|---|
 | Compilation and smoke test | Pass |
@@ -152,13 +175,17 @@ LLMs.** *Applied Sciences*, 14(3), 1046, 2024.
 [DOI and article](https://doi.org/10.3390/app14031046) ·
 [Open-access PDF](https://www.mdpi.com/2076-3417/14/3/1046/pdf)
 
+Original code and prompts:
+[lmxstar/GPT-prompts-for-safety-critical-software](https://github.com/lmxstar/GPT-prompts-for-safety-critical-software).
+
 ## License
 
-[CC BY 4.0](LICENSE), matching the original paper's license, also applies to
-this repository's adaptations and additions. Original paper material is
-copyright 2024 the authors listed above.
+[GNU GPL version 3](LICENSE), following the
+[upstream code repository](https://github.com/lmxstar/GPT-prompts-for-safety-critical-software/blob/main/LICENSE).
+This applies to this repository's code and adaptations. The paper itself is
+separately published under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+Original paper material is copyright 2024 the authors listed above.
 
-Retain author and contributor attribution, link to the source and license,
-and indicate changes. This adaptation adds formalization, requirement
-clarifications, implementation corrections, tests, and verification tooling.
-Material is provided without warranties; attribution does not imply endorsement.
+Modified adaptation, 6 November 2026: formalization, requirement clarifications,
+controller corrections, tests, and Spec2Code integration. Retain the source and
+contributor attribution above. Material is provided without warranties.

@@ -3,9 +3,10 @@
  * A candidate must provide both public entries and private cruise_integral.
  */
 #ifndef CRUISE_CONTROL_IMPLEMENTATION
-#define CRUISE_CONTROL_IMPLEMENTATION "cruise_control.c"
-#endif
+#include "cruise_control.c"
+#else
 #include CRUISE_CONTROL_IMPLEMENTATION
+#endif
 #include "cruise_control.h"
 #include "module_constants.h"
 

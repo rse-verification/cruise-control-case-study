@@ -1,0 +1,12 @@
+{
+  "spec": "nlspec.txt",
+  "interface": "cruise_control.is",
+  "headers": "headers",
+  "verification_header": "cruise_control_ver.c",
+  "include_dirs": ["headers"],
+  "prompt_headers": {
+    "cruise_control_types.h": "Required scalar aliases and CruiseState enumeration.",
+    "module_constants.h": "Controller parameters and thresholds.",
+    "cruise_control.h": "Public initialization and cyclic entry declarations."
+  }
+}
