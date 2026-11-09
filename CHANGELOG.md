@@ -77,7 +77,7 @@ The formal specification and reference implementation already contained these ru
 | Public API smoke test | Passed |
 | Embedded contracts, real model | 81 of 81 goals proved |
 | Combined external and embedded contracts, real model | 111 of 111 goals proved |
-| Configured compilation, WP, and VerNFR critics | All passed on the reference implementation |
+| VerNFR structural checks | Passed on the reference implementation |
 
 These results apply to the reference implementation, selected contracts, real
 arithmetic model, and stated proof assumptions. Tool versions and verification
@@ -88,8 +88,7 @@ commands are documented in the README.
 - Original material: [upstream commit `2cee359`](https://github.com/lmxstar/GPT-prompts-for-safety-critical-software/tree/2cee3596c7c562bd709243c792ea7ddd2cc2bf73).
 - Initial formalization: local files documenting the Edvin updates.
 - Published development point: [`v1.0.0`, commit `75b13ab`](https://github.com/rse-verification/cruise-control-case-study/tree/v1.0.0).
-- Current version: [`v1.1.0`](https://github.com/rse-verification/cruise-control-case-study/tree/v1.1.0).
-- Version identities: [source hashes](history/provenance.json).
+- Requirement clarifications: [`v1.1.0`](https://github.com/rse-verification/cruise-control-case-study/tree/v1.1.0).
 
 Attribution is based on the available development history and artifacts. The
 unversioned local files do not identify the author of each algorithm change.

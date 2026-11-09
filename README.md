@@ -31,9 +31,6 @@ unit tests, and verification using Frama-C and VerNFR.
 | `headers/` | Public API, types, and constants. |
 | `tests/unit_tests.c` | 35 requirement-focused unit tests. |
 | `tests/smoke_test.c` | Public-API smoke test. |
-| `spec2code-config.json` | Spec2Code generation and verification settings. |
-| `spec2code.project.json` | Project discovery settings for Spec2Code. |
-| `spec2code/vernfr.sh` | VerNFR adapter for the configured critics. |
 
 ## Prerequisites
 
@@ -55,23 +52,6 @@ for the interface checks. Check availability with `frama-c -wp-detect` and
 
 These are the versions used for validation, not minimum requirements.
 Run the commands below from the repository root.
-
-## Run with Spec2Code
-
-Load `spec2code-config.json` in the Spec2Code GUI. For the CLI, run from the
-Spec2Code checkout with its Python environment active:
-
-```sh
-PYTHONPATH=src python3 -m spec2code.cli.run_pipeline \
-  --config /path/to/cruise-control-case-study/spec2code-config.json \
-  --no-open-report --fail-on-critic-failure
-```
-
-The configuration uses `openai/gpt-6-luna`, one program, and up to three
-generation attempts. Set `OPENAI_API_KEY` or select another configured model.
-Paths are relative to the config file; results go to `output/spec2code/`.
-The critics check compilation, external contracts with `-wp-model real`,
-and the selected VerNFR rules. Unit tests remain separate.
 
 ## Formal verification
 
@@ -198,5 +178,5 @@ separately published under [CC BY 4.0](https://creativecommons.org/licenses/by/4
 Original paper material is copyright 2024 the authors listed above.
 
 Modified adaptation, 6 November 2026: formalization, requirement clarifications,
-controller corrections, tests, and Spec2Code integration. Retain the source and
+controller corrections, tests, and formal verification. Retain the source and
 contributor attribution above. Material is provided without warranties.
