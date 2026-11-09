@@ -1,27 +1,35 @@
 module cruise_control {
   entry_functions: {
-    void cruise_control_init(
-      float *CC_OUTR_01,
-      float *CC_OUTR_02,
-      CruiseState *CC_OUTR_03
-    ),
-    void cruise_control(
-      const bool CC_INR_01,
-      const bool CC_INR_02,
-      const bool CC_INR_03,
-      const bool CC_INR_04,
-      const bool CC_INR_05,
-      const float CC_INR_06,
-      const float CC_INR_07,
-      const float CC_INR_08,
-      float *CC_OUTR_01,
-      float *CC_OUTR_02,
-      CruiseState *CC_OUTR_03
-    )
+    void cruise_control_init(void),
+    void cruise_control(void)
   }
   entry_order: {
     cruise_control_init < cruise_control
   }
-  external_calls: { }
-  external_call_order: { }
+  external_calls: {
+    Rte_CruiseControl.h: {
+      Std_ReturnType Rte_Read_Enable_CruiseEnable(boolean *value),
+      Std_ReturnType Rte_Read_Resume_Resume(boolean *value),
+      Std_ReturnType Rte_Read_Set_Set(boolean *value),
+      Std_ReturnType Rte_Read_QuickDecel_QuickDecel(boolean *value),
+      Std_ReturnType Rte_Read_QuickAccel_QuickAccel(boolean *value),
+      Std_ReturnType Rte_Read_Accelerator_Accelerator(float32 *value),
+      Std_ReturnType Rte_Read_Brake_Brake(float32 *value),
+      Std_ReturnType Rte_Read_SpeedIn_VehicleSpeed(float32 *value),
+      Std_ReturnType Rte_Write_CruiseSpeedOut_CruiseSpeed(float32 value),
+      Std_ReturnType Rte_Write_ThrottleOut_ThrottleCommand(float32 value),
+      Std_ReturnType Rte_Write_CruiseStateOut_CruiseState(CruiseState value)
+    }
+  }
+  external_call_order: {
+    Rte_Read_Enable_CruiseEnable < Rte_Read_Resume_Resume,
+    Rte_Read_Resume_Resume < Rte_Read_Set_Set,
+    Rte_Read_Set_Set < Rte_Read_QuickDecel_QuickDecel,
+    Rte_Read_QuickDecel_QuickDecel < Rte_Read_QuickAccel_QuickAccel,
+    Rte_Read_QuickAccel_QuickAccel < Rte_Read_Accelerator_Accelerator,
+    Rte_Read_Accelerator_Accelerator < Rte_Read_Brake_Brake,
+    Rte_Read_Brake_Brake < Rte_Read_SpeedIn_VehicleSpeed,
+    Rte_Write_CruiseSpeedOut_CruiseSpeed < Rte_Write_ThrottleOut_ThrottleCommand,
+    Rte_Write_ThrottleOut_ThrottleCommand < Rte_Write_CruiseStateOut_CruiseState
+  }
 }

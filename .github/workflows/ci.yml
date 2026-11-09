@@ -29,9 +29,9 @@ jobs:
           mkdir -p build
           gcc --version
           gcc -std=c11 -Wall -Wextra -Werror -pedantic -Iheaders \
-            cruise_control.c tests/smoke_test.c -o build/smoke
+            cruise_control.c tests/smoke_test.c tests/rte_mock.c -o build/smoke
           gcc -std=c11 -Wall -Wextra -Werror -pedantic -Iheaders \
-            tests/unit_tests.c -lm -o build/unit-tests
+            tests/unit_tests.c tests/rte_mock.c -lm -o build/unit-tests
           timeout 10s ./build/smoke
           cases=$(./build/unit-tests list)
           test -n "$cases"

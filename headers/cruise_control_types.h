@@ -1,10 +1,10 @@
 #ifndef CRUISE_CONTROL_TYPES_H
 #define CRUISE_CONTROL_TYPES_H
 
-#include <stdbool.h>
+#include "Std_Types.h"
 
-typedef bool tB;
-typedef float tF32;
+typedef boolean tB;
+typedef float32 tF32;
 
 typedef enum
 {

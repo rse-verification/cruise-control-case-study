@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "rte_mock.h"
 #include "../cruise_control.c"
 
 typedef struct {
@@ -86,56 +87,144 @@ static AuditResult oracle(AuditCase c)
 }
 
 static int close_float(float a, float b) { return fabsf(a-b) <= 0.0001F; }
-static int emit(const char *name, AuditResult actual, AuditResult expected, bool throttle_defined)
+static boolean calls_match(unsigned reads, unsigned writes)
 {
-    int pass = actual.state == expected.state && close_float(actual.target, expected.target) &&
-        close_float(actual.integral, expected.integral) && (!throttle_defined || close_float(actual.throttle, expected.throttle));
-    printf("{\"name\":\"%s\",\"passed\":%s,\"actual\":{\"state\":%d,\"speed\":%.9g,\"throttle\":%.9g,\"integral\":%.9g},\"expected\":{\"state\":%d,\"speed\":%.9g,\"throttle\":%.9g,\"integral\":%.9g},\"throttle_asserted\":%s}\n",
-        name, pass ? "true" : "false", actual.state, (double)actual.target, (double)actual.throttle, (double)actual.integral,
-        expected.state, (double)expected.target, (double)expected.throttle, (double)expected.integral, throttle_defined ? "true" : "false");
+    for (unsigned i = 0; i < CC_RTE_INPUT_COUNT; ++i)
+        if (rte_mock.read_count[i] != (i < reads ? 1u : 0u)) return false;
+    for (unsigned i = 0; i < CC_RTE_OUTPUT_COUNT; ++i)
+        if (rte_mock.write_count[i] != (i < writes ? 1u : 0u)) return false;
+    if (rte_mock.trace_count != reads + writes) return false;
+    for (unsigned i = 0; i < reads; ++i)
+        if (rte_mock.trace[i] != i) return false;
+    for (unsigned i = 0; i < writes; ++i)
+        if (rte_mock.trace[reads + i] != CC_RTE_INPUT_COUNT + i) return false;
+    return true;
+}
+
+static AuditResult actual(void)
+{
+    return (AuditResult){cruise_state, cruise_speed, rte_mock.output_throttle, cruise_integral};
+}
+
+static void cycle(boolean enable, boolean resume, boolean set, boolean decel,
+                  boolean accel, float32 gas, float32 brake, float32 speed)
+{
+    RteMock_ClearCalls();
+    rte_mock.inputs = (RteMockInputs){enable,resume,set,decel,accel,gas,brake,speed};
+    cruise_control();
+}
+
+static int emit(const char *name, AuditResult observed, AuditResult expected,
+                bool throttle_defined, boolean io_ok)
+{
+    int pass = io_ok && observed.state == expected.state && close_float(observed.target, expected.target) &&
+        close_float(observed.integral, expected.integral) && (!throttle_defined || close_float(observed.throttle, expected.throttle));
+    printf("{\"name\":\"%s\",\"passed\":%s,\"io_passed\":%s,\"actual\":{\"state\":%d,\"speed\":%.9g,\"throttle\":%.9g,\"integral\":%.9g},\"expected\":{\"state\":%d,\"speed\":%.9g,\"throttle\":%.9g,\"integral\":%.9g},\"throttle_asserted\":%s}\n",
+        name, pass ? "true" : "false", io_ok ? "true" : "false", observed.state,
+        (double)observed.target, (double)observed.throttle, (double)observed.integral,
+        expected.state, (double)expected.target, (double)expected.throttle, (double)expected.integral,
+        throttle_defined ? "true" : "false");
     return pass ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
 int main(int argc, char **argv)
 {
     if (argc != 2) return 2;
+    RteMock_Reset();
     if (strcmp(argv[1], "list") == 0) {
         puts("init_resets_outputs_and_integral");
         for (unsigned i = 0; i < sizeof cases / sizeof cases[0]; ++i) puts(cases[i].name);
         puts("reachable_quick_accel_boundary");
         puts("reachable_PI_reentry");
+        for (unsigned i = 0; i < CC_RTE_INPUT_COUNT; ++i) printf("rte_read_failure_%u\n", i);
+        for (unsigned i = 1; i < 8; ++i) printf("rte_write_failures_%u\n", i);
+        for (unsigned i = 1; i < 8; ++i) printf("rte_init_write_failures_%u\n", i);
+        puts("rte_recovery_after_read_failure");
         return 0;
     }
     if (strcmp(argv[1], "init_resets_outputs_and_integral") == 0) {
-        float speed = 80, throttle = 20; CruiseState state = CRUISE_ON;
+        cruise_speed = 80; cruise_state = CRUISE_ON;
         cruise_integral = 9;
-        cruise_control_init(&speed, &throttle, &state);
-        return emit(argv[1], (AuditResult){state,speed,throttle,cruise_integral}, (AuditResult){CRUISE_OFF,0,0,0}, true);
+        cruise_control_init();
+        return emit(argv[1], actual(), (AuditResult){CRUISE_OFF,0,0,0}, true,
+                    calls_match(0,3) && rte_mock.output_speed == 0 && rte_mock.output_state == CRUISE_OFF);
     }
     if (strcmp(argv[1], "reachable_quick_accel_boundary") == 0 || strcmp(argv[1], "reachable_PI_reentry") == 0) {
-        float speed, throttle; CruiseState state;
-        cruise_control_init(&speed, &throttle, &state);
+        cruise_control_init();
         if (strcmp(argv[1], "reachable_quick_accel_boundary") == 0) {
-            cruise_control(true,false,true,false,false,0,0,149,&speed,&throttle,&state);
-            cruise_control(true,false,false,false,true,0,0,140,&speed,&throttle,&state);
-            return emit(argv[1], (AuditResult){state,speed,throttle,cruise_integral}, (AuditResult){CRUISE_ON,150,45,0}, true);
+            cycle(true,false,true,false,false,0,0,149);
+            cycle(true,false,false,false,true,0,0,140);
+            return emit(argv[1], actual(), (AuditResult){CRUISE_ON,150,45,0}, true,
+                        calls_match(8,3) && rte_mock.output_speed == 150 && rte_mock.output_state == CRUISE_ON);
         } else {
-            cruise_control(true,false,true,false,false,0,0,100,&speed,&throttle,&state);
-            cruise_control(true,false,false,false,false,0,4,100,&speed,&throttle,&state);
-            cruise_control(true,true,false,false,false,5,0,95,&speed,&throttle,&state);
-            cruise_control(true,false,false,false,false,0,0,95,&speed,&throttle,&state);
-            return emit(argv[1], (AuditResult){state,speed,throttle,cruise_integral}, (AuditResult){CRUISE_ON,100,KP*5+KI*5,5}, true);
+            cycle(true,false,true,false,false,0,0,100);
+            cycle(true,false,false,false,false,0,4,100);
+            cycle(true,true,false,false,false,5,0,95);
+            cycle(true,false,false,false,false,0,0,95);
+            return emit(argv[1], actual(), (AuditResult){CRUISE_ON,100,KP*5+KI*5,5}, true,
+                        calls_match(8,3) && rte_mock.output_speed == 100 && rte_mock.output_state == CRUISE_ON);
         }
     }
     for (unsigned i = 0; i < sizeof cases / sizeof cases[0]; ++i) {
         AuditCase c = cases[i];
         if (strcmp(argv[1], c.name) != 0) continue;
-        float speed = c.target, throttle = 0; CruiseState state = c.state;
+        cruise_control_init();
+        cruise_speed = c.target; cruise_state = c.state;
         cruise_integral = c.integral;
-        cruise_control(c.enabled,c.resume,c.set,c.decel,c.accel,c.gas,c.brake,c.vehicle,&speed,&throttle,&state);
+        cycle(c.enabled,c.resume,c.set,c.decel,c.accel,c.gas,c.brake,c.vehicle);
         AuditResult expected = oracle(c);
-        return emit(c.name, (AuditResult){state,speed,throttle,cruise_integral}, expected,
-                    expected.state == CRUISE_ON || expected.state == CRUISE_OFF);
+        return emit(c.name, actual(), expected, expected.state == CRUISE_ON || expected.state == CRUISE_OFF,
+                    calls_match(8,3) && close_float(rte_mock.output_speed, cruise_speed) &&
+                    rte_mock.output_state == cruise_state);
+    }
+    for (unsigned port = 0; port < CC_RTE_INPUT_COUNT; ++port) {
+        char name[64];
+        (void)snprintf(name, sizeof name, "rte_read_failure_%u", port);
+        if (strcmp(argv[1], name) != 0) continue;
+        cruise_control_init();
+        cruise_speed = 100; cruise_integral = 2; cruise_state = CRUISE_ON;
+        rte_mock.output_speed = 73; rte_mock.output_throttle = 12; rte_mock.output_state = CRUISE_STDBY;
+        rte_mock.read_status[port] = RTE_E_NOT_OK;
+        cycle(true,false,true,false,false,0,0,80);
+        return emit(name, actual(), (AuditResult){CRUISE_ON,100,12,2}, true,
+                    calls_match(port+1,0) && rte_mock.output_speed == 73 && rte_mock.output_state == CRUISE_STDBY);
+    }
+    for (unsigned mask = 1; mask < 8; ++mask) {
+        char name[64];
+        (void)snprintf(name, sizeof name, "rte_write_failures_%u", mask);
+        if (strcmp(argv[1], name) == 0) {
+            cruise_control_init();
+            cruise_speed = 100; cruise_integral = 2; cruise_state = CRUISE_ON;
+            rte_mock.output_speed = 73; rte_mock.output_throttle = 12; rte_mock.output_state = CRUISE_STDBY;
+            for (unsigned i = 0; i < 3; ++i)
+                rte_mock.write_status[i] = mask & (1u << i) ? RTE_E_NOT_OK : RTE_E_OK;
+            cycle(true,false,false,false,false,0,0,99);
+            return emit(name, actual(), (AuditResult){CRUISE_ON,100,mask & 2u ? 12 : KP+KI*3,3}, true,
+                        calls_match(8,3) && rte_mock.output_speed == (mask & 1u ? 73 : 100) &&
+                        rte_mock.output_state == (mask & 4u ? CRUISE_STDBY : CRUISE_ON));
+        }
+        (void)snprintf(name, sizeof name, "rte_init_write_failures_%u", mask);
+        if (strcmp(argv[1], name) == 0) {
+            cruise_speed = 80; cruise_integral = 9; cruise_state = CRUISE_ON;
+            rte_mock.output_speed = 73; rte_mock.output_throttle = 12; rte_mock.output_state = CRUISE_STDBY;
+            for (unsigned i = 0; i < 3; ++i)
+                rte_mock.write_status[i] = mask & (1u << i) ? RTE_E_NOT_OK : RTE_E_OK;
+            cruise_control_init();
+            return emit(name, actual(), (AuditResult){CRUISE_OFF,0,mask & 2u ? 12 : 0,0}, true,
+                        calls_match(0,3) && rte_mock.output_speed == (mask & 1u ? 73 : 0) &&
+                        rte_mock.output_state == (mask & 4u ? CRUISE_STDBY : CRUISE_OFF));
+        }
+    }
+    if (strcmp(argv[1], "rte_recovery_after_read_failure") == 0) {
+        cruise_control_init();
+        cruise_speed = 100; cruise_integral = 2; cruise_state = CRUISE_ON;
+        rte_mock.read_status[7] = RTE_E_NOT_OK;
+        cycle(true,false,false,false,false,0,0,99);
+        boolean held = cruise_speed == 100 && cruise_integral == 2 && cruise_state == CRUISE_ON && calls_match(8,0);
+        rte_mock.read_status[7] = RTE_E_OK;
+        cycle(true,false,false,false,false,0,0,99);
+        return emit(argv[1], actual(), (AuditResult){CRUISE_ON,100,KP+KI*3,3}, true,
+                    held && calls_match(8,3) && rte_mock.output_speed == 100 && rte_mock.output_state == CRUISE_ON);
     }
     return 2;
 }

@@ -69,21 +69,46 @@ Two contract rules were made explicit in the NL requirements.
 
 The formal specification and reference implementation already contained these rules.
 
-## 5. Verification status
+## 5. RTE-based runnables — v2.0.0
+
+- **Runnable interface:** replaced signal parameters and output pointers with
+  `void cruise_control_init(void)` and `void cruise_control(void)`.
+- **Signal access:** inputs now come from eight `Rte_Read_*` functions, and
+  outputs are sent through three `Rte_Write_*` functions. RTE functions return
+  `Std_ReturnType`. Signal values retain boolean and floating-point types.
+- **State ownership:** the controller now owns the target and cruise state as
+  well as its integral. Published RTE outputs are separate from controller state.
+- **Read failures:** the first unsuccessful read stops the cycle before any
+  controller update or output write. Later successful cycles resume from the
+  retained state.
+- **Write failures:** every output write is attempted once after successful
+  cyclic reads. Initialization attempts the same writes without reading inputs.
+  A failed port retains its old value;
+  later writes continue, with no retry or controller-state rollback.
+- **NL and formal specification:** added I/O requirements, RTE read and write
+  contracts, conditional publication rules, and proof-only counters for call
+  attempts. The controller requirements apply when all reads succeed.
+- **Interface specification:** whitelisted the RTE functions and added read and
+  write ordering constraints. Initialization precedes cyclic execution.
+- **Tests and CI:** added configurable RTE mocks, 23 transport-failure cases,
+  and call tracing. CI links the mocks for native tests and verifies the two
+  runnable targets against the shared contract header.
+
+## 6. Verification status
 
 | Check | Result |
 |---|---|
-| Unit tests | 35 of 35 passed |
+| Unit tests | 58 of 58 passed |
 | Public API smoke test | Passed |
-| Embedded contracts, real model | 81 of 81 goals proved |
-| Combined external and embedded contracts, real model | 111 of 111 goals proved |
-| VerNFR structural checks | Passed on the reference implementation |
+| Runnable contracts, real model | 148 of 148 goals proved |
+| External candidate contracts, real model | 148 of 148 goals proved |
+| VerNFR interface and structural checks | Passed on the v2 reference implementation |
 
 These results apply to the reference implementation, selected contracts, real
-arithmetic model, and stated proof assumptions. Tool versions and verification
+arithmetic model, and RTE environment contracts. Tool versions and verification
 commands are documented in the README.
 
-## 6. Provenance and scope
+## 7. Provenance and scope
 
 - Original material: [upstream commit `2cee359`](https://github.com/lmxstar/GPT-prompts-for-safety-critical-software/tree/2cee3596c7c562bd709243c792ea7ddd2cc2bf73).
 - Initial formalization: local files documenting the Edvin updates.
