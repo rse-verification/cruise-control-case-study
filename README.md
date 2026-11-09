@@ -3,6 +3,8 @@
 A cruise-control case study with natural-language requirements, ACSL contracts,
 unit tests, and verification using Frama-C and VerNFR.
 
+[![Test and verify](https://github.com/rse-verification/cruise-control-case-study/actions/workflows/ci.yml/badge.svg)](https://github.com/rse-verification/cruise-control-case-study/actions/workflows/ci.yml)
+
 ## Credits
 
 | Contributor | Contribution |
@@ -54,6 +56,12 @@ These are the versions used for validation, not minimum requirements.
 Run the commands below from the repository root.
 
 ## Formal verification
+
+GitHub Actions runs the unit tests, smoke test, and both WP verification targets
+on every push and pull request. CI pins Frama-C 33.0 and Alt-Ergo 2.6.4, uses
+`-wp-model real`, and fails if any goal remains unproved. Full proof logs and
+JSON goal reports are available as workflow artifacts. The VerNFR commands
+below are separate checks.
 
 Verify the embedded contracts in the implementation:
 
@@ -125,6 +133,7 @@ gcc -std=c11 -Wall -Wextra -Werror -pedantic -Iheaders tests/unit_tests.c -lm -o
 The first command builds `unit-tests`; `list` prints test names without running
 them. Supply any listed name to run that test in a fresh process. The JSON
 field `"passed": true` indicates a pass.
+Each test also returns a nonzero exit status on failure.
 
 The 35 tests cover initialization, state transitions, pedal thresholds, speed
 bounds, button priorities, PI control, integral handling, OFF throttle, and

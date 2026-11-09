@@ -1,0 +1,93 @@
+name: Test and verify
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  native-tests:
+    name: Unit tests and smoke test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build and run tests
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          gcc --version
+          gcc -std=c11 -Wall -Wextra -Werror -pedantic -Iheaders \
+            cruise_control.c tests/smoke_test.c -o build/smoke
+          gcc -std=c11 -Wall -Wextra -Werror -pedantic -Iheaders \
+            tests/unit_tests.c -lm -o build/unit-tests
+          timeout 10s ./build/smoke
+          cases=$(./build/unit-tests list)
+          test -n "$cases"
+          count=0
+          failed=0
+          while IFS= read -r name; do
+            count=$((count + 1))
+            if ! timeout 10s ./build/unit-tests "$name" | tee -a build/unit-tests.jsonl; then
+              failed=1
+            fi
+          done <<< "$cases"
+          printf 'Smoke test passed. Ran %s unit tests.\n' "$count" >> "$GITHUB_STEP_SUMMARY"
+          exit "$failed"
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results
+          path: build/unit-tests.jsonl
+          retention-days: 14
+
+  frama-c:
+    name: Frama-C real-model verification
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes jq z3 cvc5
+      - name: Set up OCaml
+        uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: "5.2.1"
+          opam-pin: false
+          cache-prefix: frama-c-33-alt-ergo-2.6.4
+      - name: Install Frama-C and Alt-Ergo
+        run: opam install --yes frama-c.33.0 alt-ergo.2.6.4
+      - name: Configure provers and record versions
+        run: |
+          mkdir -p build/wp
+          {
+            opam exec -- frama-c -version
+            opam exec -- alt-ergo --version
+            z3 -version
+            cvc5 --version
+            opam exec -- why3 config detect
+            opam exec -- frama-c -wp-detect
+          } 2>&1 | tee build/wp/toolchain.log
+      - name: Verify embedded and external contracts
+        run: opam exec -- bash tests/verify_wp.sh
+      - name: Upload proof logs and goal reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frama-c-proof-results
+          path: build/wp/
+          retention-days: 14

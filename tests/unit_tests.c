@@ -86,13 +86,14 @@ static AuditResult oracle(AuditCase c)
 }
 
 static int close_float(float a, float b) { return fabsf(a-b) <= 0.0001F; }
-static void emit(const char *name, AuditResult actual, AuditResult expected, bool throttle_defined)
+static int emit(const char *name, AuditResult actual, AuditResult expected, bool throttle_defined)
 {
     int pass = actual.state == expected.state && close_float(actual.target, expected.target) &&
         close_float(actual.integral, expected.integral) && (!throttle_defined || close_float(actual.throttle, expected.throttle));
     printf("{\"name\":\"%s\",\"passed\":%s,\"actual\":{\"state\":%d,\"speed\":%.9g,\"throttle\":%.9g,\"integral\":%.9g},\"expected\":{\"state\":%d,\"speed\":%.9g,\"throttle\":%.9g,\"integral\":%.9g},\"throttle_asserted\":%s}\n",
         name, pass ? "true" : "false", actual.state, (double)actual.target, (double)actual.throttle, (double)actual.integral,
         expected.state, (double)expected.target, (double)expected.throttle, (double)expected.integral, throttle_defined ? "true" : "false");
+    return pass ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
 int main(int argc, char **argv)
@@ -109,8 +110,7 @@ int main(int argc, char **argv)
         float speed = 80, throttle = 20; CruiseState state = CRUISE_ON;
         cruise_integral = 9;
         cruise_control_init(&speed, &throttle, &state);
-        emit(argv[1], (AuditResult){state,speed,throttle,cruise_integral}, (AuditResult){CRUISE_OFF,0,0,0}, true);
-        return 0;
+        return emit(argv[1], (AuditResult){state,speed,throttle,cruise_integral}, (AuditResult){CRUISE_OFF,0,0,0}, true);
     }
     if (strcmp(argv[1], "reachable_quick_accel_boundary") == 0 || strcmp(argv[1], "reachable_PI_reentry") == 0) {
         float speed, throttle; CruiseState state;
@@ -118,15 +118,14 @@ int main(int argc, char **argv)
         if (strcmp(argv[1], "reachable_quick_accel_boundary") == 0) {
             cruise_control(true,false,true,false,false,0,0,149,&speed,&throttle,&state);
             cruise_control(true,false,false,false,true,0,0,140,&speed,&throttle,&state);
-            emit(argv[1], (AuditResult){state,speed,throttle,cruise_integral}, (AuditResult){CRUISE_ON,150,45,0}, true);
+            return emit(argv[1], (AuditResult){state,speed,throttle,cruise_integral}, (AuditResult){CRUISE_ON,150,45,0}, true);
         } else {
             cruise_control(true,false,true,false,false,0,0,100,&speed,&throttle,&state);
             cruise_control(true,false,false,false,false,0,4,100,&speed,&throttle,&state);
             cruise_control(true,true,false,false,false,5,0,95,&speed,&throttle,&state);
             cruise_control(true,false,false,false,false,0,0,95,&speed,&throttle,&state);
-            emit(argv[1], (AuditResult){state,speed,throttle,cruise_integral}, (AuditResult){CRUISE_ON,100,KP*5+KI*5,5}, true);
+            return emit(argv[1], (AuditResult){state,speed,throttle,cruise_integral}, (AuditResult){CRUISE_ON,100,KP*5+KI*5,5}, true);
         }
-        return 0;
     }
     for (unsigned i = 0; i < sizeof cases / sizeof cases[0]; ++i) {
         AuditCase c = cases[i];
@@ -135,9 +134,8 @@ int main(int argc, char **argv)
         cruise_integral = c.integral;
         cruise_control(c.enabled,c.resume,c.set,c.decel,c.accel,c.gas,c.brake,c.vehicle,&speed,&throttle,&state);
         AuditResult expected = oracle(c);
-        emit(c.name, (AuditResult){state,speed,throttle,cruise_integral}, expected,
-             expected.state == CRUISE_ON || expected.state == CRUISE_OFF);
-        return 0;
+        return emit(c.name, (AuditResult){state,speed,throttle,cruise_integral}, expected,
+                    expected.state == CRUISE_ON || expected.state == CRUISE_OFF);
     }
     return 2;
 }
