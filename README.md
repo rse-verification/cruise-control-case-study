@@ -8,8 +8,17 @@ unit tests, and verification using Frama-C and VerNFR.
 | Contributor | Contribution |
 |---|---|
 | [Liu et al. (2024)](https://doi.org/10.3390/app14031046) | Original published case study. |
-| [Edvin Rungardt (@Spoonvin)](https://github.com/Spoonvin) | Most of the implementation and ACSL formalization. |
+| [Edvin Rungardt (@Spoonvin)](https://github.com/Spoonvin) | Initial ACSL formalization and code adaptation. |
 | [Merlijn Sevenhuijsen (@SevenhuijsenM)](https://github.com/SevenhuijsenM) | Implementation restructuring, quality improvements, and validation. |
+
+## Brief changelog
+
+- **Original:** Case study and generated code from Liu et al.
+- **Edvin:** Formalized the requirements in ACSL and adapted the code for verification.
+- **Merlijn:** Reviewed and refined the requirements, contracts, and implementation,
+  added tests, and verified the stated contracts.
+
+[Detailed changelog](CHANGELOG.md).
 
 ## Contents
 
@@ -20,7 +29,7 @@ unit tests, and verification using Frama-C and VerNFR.
 | `cruise_control_ver.c` | External contracts for verifying an implementation. |
 | `cruise_control.is` | Interface specification. |
 | `headers/` | Public API, types, and constants. |
-| `tests/unit_tests.c` | 29 requirement-focused unit tests. |
+| `tests/unit_tests.c` | 35 requirement-focused unit tests. |
 | `tests/smoke_test.c` | Public-API smoke test. |
 | `spec2code-config.json` | Spec2Code generation and verification settings. |
 | `spec2code.project.json` | Project discovery settings for Spec2Code. |
@@ -66,7 +75,7 @@ and the selected VerNFR rules. Unit tests remain separate.
 
 ## Formal verification
 
-Verify the implementation's embedded contracts:
+Verify the embedded contracts in the implementation:
 
 ```sh
 frama-c -cpp-extra-args=-Iheaders cruise_control.c \
@@ -88,7 +97,7 @@ It must provide the public entries and private
 `cruise_integral` state. For an independent check, omit candidate ACSL
 contracts; otherwise Frama-C merges them, including their preconditions.
 
-Proofs use real arithmetic and the contracts' per-call assumptions: finite
+Proofs use real arithmetic and the per-call contract assumptions: finite
 inputs and state, vehicle speed between 0 and 1000, target between 0 and 150,
 integral between -1000 and 1000, valid state, and valid, separated output pointers.
 An incoming non-OFF state requires a target between 30 and 150.
@@ -103,7 +112,7 @@ must satisfy the initialization order.
 VerNFR checks structural and data-flow requirements, complementing the
 functional ACSL proofs and concrete unit tests.
 
-Check the implementation's entries, calls, private state, and initialization:
+Check entries, calls, private state, and initialization in the implementation:
 
 ```sh
 frama-c -vernfr -nfr-ispec cruise_control.is \
@@ -137,9 +146,10 @@ The first command builds `unit-tests`; `list` prints test names without running
 them. Supply any listed name to run that test in a fresh process. The JSON
 field `"passed": true` indicates a pass.
 
-The 29 tests cover initialization, state transitions, pedal thresholds, speed
-bounds, button priorities, PI control, and integral handling. Two tests exercise
-sequences starting from initialization. Numeric comparisons use tolerance
+The 35 tests cover initialization, state transitions, pedal thresholds, speed
+bounds, button priorities, PI control, integral handling, OFF throttle, and
+Resume while braking. Two tests exercise sequences starting from initialization.
+Numeric comparisons use tolerance
 `0.0001`; the suite is not exhaustive.
 
 Build and run the public-API smoke test:
@@ -151,13 +161,14 @@ gcc -std=c11 -Wall -Wextra -Werror -pedantic -Iheaders cruise_control.c tests/sm
 
 ## Validation results
 
-Rerun for `v1.0.0` with the tool versions above. Both direct WP checks used
-`-wp-model real` with the proof cache disabled.
+Current results use the tool versions above. Both direct WP checks used
+`-wp-model real` with the proof cache disabled. Historical `v1.0.0` results are
+recorded in the changelog.
 
 | Check | Result |
 |---|---|
 | Compilation and smoke test | Pass |
-| Unit tests | 29 of 29 pass |
+| Unit tests | 35 of 35 pass |
 | Embedded ACSL contracts | 81 of 81 goals proved |
 | External contracts, combined with embedded contracts | 111 of 111 goals proved |
 | VerNFR commands above | Pass, without VerNFR violation warnings |
@@ -182,7 +193,7 @@ Original code and prompts:
 
 [GNU GPL version 3](LICENSE), following the
 [upstream code repository](https://github.com/lmxstar/GPT-prompts-for-safety-critical-software/blob/main/LICENSE).
-This applies to this repository's code and adaptations. The paper itself is
+This applies to the code and adaptations in this repository. The paper itself is
 separately published under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 Original paper material is copyright 2024 the authors listed above.
 

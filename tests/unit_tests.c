@@ -1,9 +1,9 @@
 /* Unit tests for nlspec.txt, not an ACSL substitute.
  * The implementation is included to inspect private state without changing
  * the public API. Every test invocation runs in a fresh process.
- * Ambiguous Resume+brake combinations are excluded.
- * Bounded SET/step results use increment-then-clamp.
- * OFF/STDBY/INT throttle magnitude is not asserted by this oracle.
+ * Resume while braking uses the normal enabled speed-management rules.
+ * Bounded SET and step results use increment-then-clamp.
+ * OFF throttle is checked; STDBY and INT throttle magnitude is not asserted.
  */
 #include <math.h>
 #include <stdio.h>
@@ -22,10 +22,16 @@ typedef struct { CruiseState state; float target, throttle, integral; } AuditRes
 
 static const AuditCase cases[] = {
     {"disabled_retains_speed", CRUISE_ON,100,5, false,false,false,false,false,10,0,80},
+    {"off_accelerator_below_threshold", CRUISE_OFF,100,0, false,false,false,false,false,2,0,80},
+    {"off_accelerator_at_threshold", CRUISE_OFF,100,0, false,false,false,false,false,3,0,80},
+    {"off_manual_throttle_above_cruise_limit", CRUISE_OFF,100,0, false,false,false,false,false,50,0,80},
     {"brake_priority", CRUISE_ON,100,0, true,false,false,false,false,0,4,80},
     {"interrupted_waits_for_resume", CRUISE_INT,100,0, true,false,false,false,false,0,0,80},
     {"resume_preserves_speed_over_set", CRUISE_INT,100,0, true,true,true,false,false,0,0,80},
     {"resume_to_standby", CRUISE_INT,100,0, true,true,false,false,false,10,0,80},
+    {"resume_while_braking_allows_set", CRUISE_INT,100,0, true,true,true,false,false,0,4,80},
+    {"resume_while_braking_allows_quick_accel", CRUISE_INT,100,0, true,true,false,false,true,0,4,80},
+    {"resume_while_braking_allows_quick_decel", CRUISE_INT,100,0, true,true,false,true,false,0,4,80},
     {"below_minimum_standby", CRUISE_ON,100,0, true,false,false,false,false,0,0,20},
     {"minimum_speed_inclusive", CRUISE_ON,100,0, true,false,false,false,false,0,0,30},
     {"maximum_speed_inclusive", CRUISE_ON,100,0, true,false,false,false,false,0,0,150},
@@ -59,7 +65,7 @@ static AuditResult oracle(AuditCase c)
     else if (c.brake > PEDALS_MIN) r.state = CRUISE_INT;
     else if (c.state == CRUISE_INT && !c.resume) r.state = CRUISE_INT;
     else r.state = c.gas <= PEDALS_MIN && c.vehicle >= SPEED_MIN && c.vehicle <= SPEED_MAX ? CRUISE_ON : CRUISE_STDBY;
-    bool successful_resume = c.state == CRUISE_INT && c.resume && r.state != CRUISE_INT;
+    bool successful_resume = c.enabled && c.state == CRUISE_INT && c.resume && c.brake <= PEDALS_MIN;
     if (r.state != CRUISE_OFF && !successful_resume) {
         if (c.set) r.target = c.vehicle;
         else if (c.accel && c.target < SPEED_MAX) r.target += SPEED_INC;
@@ -72,7 +78,10 @@ static AuditResult oracle(AuditCase c)
         float candidate = KP * error + KI * next_integral;
         r.throttle = bounded(candidate, 0, THROTTLE_SAT_MAX);
         if (candidate > 0 && candidate < THROTTLE_SAT_MAX) r.integral = next_integral;
-    } else r.integral = 0;
+    } else {
+        r.integral = 0;
+        if (r.state == CRUISE_OFF) r.throttle = c.gas > PEDALS_MIN ? c.gas : 0;
+    }
     return r;
 }
 
@@ -126,7 +135,8 @@ int main(int argc, char **argv)
         cruise_integral = c.integral;
         cruise_control(c.enabled,c.resume,c.set,c.decel,c.accel,c.gas,c.brake,c.vehicle,&speed,&throttle,&state);
         AuditResult expected = oracle(c);
-        emit(c.name, (AuditResult){state,speed,throttle,cruise_integral}, expected, expected.state == CRUISE_ON);
+        emit(c.name, (AuditResult){state,speed,throttle,cruise_integral}, expected,
+             expected.state == CRUISE_ON || expected.state == CRUISE_OFF);
         return 0;
     }
     return 2;

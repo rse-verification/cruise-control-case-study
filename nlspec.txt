@@ -84,12 +84,20 @@ The following priority order applies in each invocation:
 * **CC_HLR_CCB_05:** Under the same conditions, CC shall be CRUISE_STDBY when the accelerator is pressed or speed is outside limits.
 * **CC_HLR_CCB_06:** A CRUISE_STDBY state shall change to CRUISE_ON when the accelerator is not pressed and speed returns within limits.
 * **CC_HLR_CCB_07:** When enabled and the brake pedal is pressed, CC shall change to CRUISE_INT.
-* **CC_HLR_CCB_08:** Resume from CRUISE_INT shall select CRUISE_ON or CRUISE_STDBY from the accelerator and speed conditions without changing the stored cruise speed during that invocation.
+* **CC_HLR_CCB_08:** Resume shall take effect only when cruise control is enabled,
+  the previous state is CRUISE_INT, and the brake pedal is not pressed.
+  A successful resume shall select CRUISE_ON or CRUISE_STDBY from the accelerator
+  and speed conditions without changing the stored cruise speed during that
+  invocation. It shall take priority over SET, QUICKACCEL, and QUICKDECEL.
+  A Resume request that does not take effect shall not suppress the normal
+  enabled cruise-speed management rules.
 
 ### 11.2 Car Driving Control
 
 * **CC_HLR_CDC_01:**
-  When CC is OFF, speed is not regulated by CC.
+  When CC is OFF, speed is not regulated by CC. The throttle command shall
+  equal the accelerator sensor value when that value exceeds *PedalsMin*,
+  and shall otherwise be zero.
 
 * **CC_HLR_CDC_02:**
   When CC is ON, speed is automatically regulated by CC.
@@ -111,6 +119,11 @@ The following priority order applies in each invocation:
   Throttle is limited to *ThrottleSatMax* to ensure comfort.
 
 ### 11.3 Cruise Speed Management
+
+The following speed-management rules apply while CC is enabled, except during
+an invocation with a successful resume as defined by CC_HLR_CCB_08. In
+particular, a Resume request while braking does not preserve the target ahead
+of SET, QUICKACCEL, or QUICKDECEL: their normal priority and bounds apply.
 
 * **CC_HLR_CSM_01:**
   Cruise speed is changed and managed ONLY when CC is enabled (ON, STDBY, INT).
