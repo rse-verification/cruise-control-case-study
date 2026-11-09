@@ -38,7 +38,7 @@ unit tests, and verification using Frama-C and VerNFR.
 
 Use Linux or WSL with GCC, Frama-C with WP and RTE, and the Alt-Ergo, Z3,
 and CVC5 provers. Install [VerNFR](https://github.com/rse-verification/VerNFR)
-for the interface checks. Check availability with `frama-c -wp-detect` and
+for the interface checks. Check availability with `frama-c -wp-list-provers` and
 `frama-c -nfr-h`.
 
 ### Tested versions

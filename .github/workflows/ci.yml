@@ -47,7 +47,7 @@ jobs:
           exit "$failed"
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: unit-test-results
           path: build/unit-tests.jsonl
@@ -80,13 +80,13 @@ jobs:
             z3 -version
             cvc5 --version
             opam exec -- why3 config detect
-            opam exec -- frama-c -wp-detect
+            opam exec -- frama-c -wp-list-provers
           } 2>&1 | tee build/wp/toolchain.log
       - name: Verify embedded and external contracts
         run: opam exec -- bash tests/verify_wp.sh
       - name: Upload proof logs and goal reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: frama-c-proof-results
           path: build/wp/
