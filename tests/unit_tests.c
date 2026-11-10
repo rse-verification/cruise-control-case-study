@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+
 /* Unit tests for nlspec.txt, not an ACSL substitute.
  * The implementation is included to inspect private state without changing
  * the public API. Every test invocation runs in a fresh process.

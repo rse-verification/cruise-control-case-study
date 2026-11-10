@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-only
 # Run from the repository root. Requires Frama-C, configured provers, and jq.
 set -euo pipefail
 

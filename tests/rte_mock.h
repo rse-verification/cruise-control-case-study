@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+
 #ifndef RTE_MOCK_H
 #define RTE_MOCK_H
 

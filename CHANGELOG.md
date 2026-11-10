@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+
 # Changelog
 
 This changelog records the development of the cruise-control case study from

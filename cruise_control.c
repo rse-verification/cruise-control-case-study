@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+
 #include "cruise_control.h"
 #include "Rte_CruiseControl.h"
 #include "module_constants.h"

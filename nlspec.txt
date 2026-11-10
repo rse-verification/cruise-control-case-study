@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+
 # Cruise-control natural-language specification — version 2
 
 ## 1. Runnable interface and lifecycle

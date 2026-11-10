@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+
 # Cruise Control — version 2
 
 A cruise-control case study with parameterless runnables, AUTOSAR Classic-style
@@ -177,9 +179,14 @@ Original code and prompts:
 
 ## License
 
-[GNU GPL version 3](LICENSE), following the upstream code repository. The paper
+This repository is licensed under the GNU General Public License, version 3 only
+([SPDX: GPL-3.0-only](https://spdx.org/licenses/GPL-3.0-only.html)), following the
+upstream code repository. See [LICENSE](LICENSE) for the full terms. The paper
 itself is separately published under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 Original paper material is copyright 2024 the authors listed above.
+
+Source files carry SPDX notices. `cruise_control.is.license` records the license
+for the interface specification.
 
 This adaptation adds formalization, requirement clarifications, controller
 corrections, tests, and RTE-based execution. Version 2 modifications: 2026-11-09.
