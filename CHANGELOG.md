@@ -96,7 +96,18 @@ The formal specification and reference implementation already contained these ru
   and call tracing. CI links the mocks for native tests and verifies the two
   runnable targets against the shared contract header.
 
-## 6. Verification status
+## 6. Type-alias consistency
+
+- **Implementation:** changed the three locally read floating-point signals
+  (`accelerator`, `brake`, and `speed`) from `float32` to the project alias
+  `tF32`. `tF32` is a `float32` alias, so this does not change the ABI or
+  runtime behavior.
+- **VerNFR:** the `-nfr-typedefs` data-flow check now accepts the reference
+  implementation without typedef-use findings.
+- **Documentation:** split the reproducible VerNFR commands into control-flow,
+  data-flow, and header-interface groups.
+
+## 7. Verification status
 
 | Check | Result |
 |---|---|
@@ -110,7 +121,7 @@ These results apply to the reference implementation, selected contracts, real
 arithmetic model, and RTE environment contracts. Tool versions and verification
 commands are documented in the README.
 
-## 7. Provenance and scope
+## 8. Provenance and scope
 
 - Original material: [upstream commit `2cee359`](https://github.com/lmxstar/GPT-prompts-for-safety-critical-software/tree/2cee3596c7c562bd709243c792ea7ddd2cc2bf73).
 - Initial formalization: local files documenting the Edvin updates.

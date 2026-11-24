@@ -26,7 +26,7 @@ void cruise_control(void)
 {
     boolean enable = false, resume = false, set = false;
     boolean decel = false, accel = false;
-    float32 accelerator = 0.0f, brake = 0.0f, speed = 0.0f;
+    tF32 accelerator = 0.0f, brake = 0.0f, speed = 0.0f;
 
     if (Rte_Read_Enable_CruiseEnable(&enable) != RTE_E_OK) return;
     if (Rte_Read_Resume_Resume(&resume) != RTE_E_OK) return;

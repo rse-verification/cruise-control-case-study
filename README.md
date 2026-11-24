@@ -115,8 +115,12 @@ separately because initialization publishes outputs without reading inputs.
 frama-c -vernfr -nfr-ispec cruise_control.is \
   -cpp-extra-args=-Iheaders -main cruise_control -keep-unused-functions all \
   -nfr-check-calls -nfr-fun-ptrs -nfr-all-entries-defined -nfr-only-entries \
-  -nfr-static-vars -nfr-proper-init -nfr-check-ptr-literals \
-  -nfr-external-call-order cruise_control.c
+  cruise_control.c
+
+frama-c -vernfr -nfr-ispec cruise_control.is \
+  -cpp-extra-args=-Iheaders -main cruise_control -keep-unused-functions all \
+  -nfr-static-vars -nfr-proper-init -nfr-check-ptr-literals -nfr-typedefs \
+  cruise_control.c
 
 frama-c -vernfr -nfr-ispec cruise_control.is \
   -cpp-extra-args=-Iheaders -keep-unused-functions all -keep-unused-types \
@@ -124,6 +128,8 @@ frama-c -vernfr -nfr-ispec cruise_control.is \
 ```
 
 Inspect the diagnostics: a zero exit status alone does not establish success.
+The control-flow and data-flow command groups each use a 180-second shared
+limit in the reference audit.
 
 ## Unit tests
 
