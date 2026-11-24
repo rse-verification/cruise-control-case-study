@@ -11,8 +11,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/wait.h>
+#include <unistd.h>
 #include "rte_mock.h"
+#ifdef SPEC2CODE_CANDIDATE
+#include "candidate_cruise_control.c"
+#else
 #include "../cruise_control.c"
+#endif
 
 typedef struct {
     const char *name;
@@ -129,8 +135,50 @@ static int emit(const char *name, AuditResult observed, AuditResult expected,
     return pass ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
+static int run_case(const char *executable, const char *name)
+{
+    pid_t child = fork();
+    if (child < 0) return 1;
+    if (child == 0) {
+        execlp(executable, executable, name, (char *)NULL);
+        _exit(127);
+    }
+
+    int status = 0;
+    return waitpid(child, &status, 0) < 0 || !WIFEXITED(status) || WEXITSTATUS(status) != 0;
+}
+
 int main(int argc, char **argv)
 {
+    if (argc == 1) {
+        int failed = 0;
+        const char *fixed[] = {
+            "init_resets_outputs_and_integral",
+            "reachable_quick_accel_boundary",
+            "reachable_PI_reentry",
+            "rte_recovery_after_read_failure",
+        };
+        for (unsigned i = 0; i < sizeof fixed / sizeof fixed[0]; ++i) {
+            failed += run_case(argv[0], fixed[i]);
+        }
+        for (unsigned i = 0; i < sizeof cases / sizeof cases[0]; ++i) {
+            failed += run_case(argv[0], cases[i].name);
+        }
+        for (unsigned i = 0; i < CC_RTE_INPUT_COUNT; ++i) {
+            char name[64];
+            (void)snprintf(name, sizeof name, "rte_read_failure_%u", i);
+            failed += run_case(argv[0], name);
+        }
+        for (unsigned i = 1; i < 8; ++i) {
+            char name[64];
+            (void)snprintf(name, sizeof name, "rte_write_failures_%u", i);
+            failed += run_case(argv[0], name);
+            (void)snprintf(name, sizeof name, "rte_init_write_failures_%u", i);
+            failed += run_case(argv[0], name);
+        }
+        printf("Cruise-control tests: %s\n", failed == 0 ? "all passed" : "failures detected");
+        return failed == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+    }
     if (argc != 2) return 2;
     RteMock_Reset();
     if (strcmp(argv[1], "list") == 0) {
